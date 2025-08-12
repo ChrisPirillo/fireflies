@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!--#region SEO & Metadata -->
+    <meta charset="UTF-8" />
+    <title>Fireflies</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="An interactive, generative art experience featuring mesmerizing, simulated fireflies. Control their color, speed, brightness, and more in this relaxing WebGL visualizer." />
+    <meta name="keywords" content="fireflies, interactive art, generative art, webgl, simulation, relaxing, visualizer" />
+    <meta name="author" content="Chris Pirillo" />
+    <link rel="canonical" href="https://pirillo.com/arcade/fireflies.html" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pirillo.com/arcade/fireflies.html" />
+    <meta property="og:title" content="Fireflies - An Interactive WebGL Experience" />
+    <meta property="og:description" content="A mesmerizing, interactive simulation of fireflies. Control their flight, color, and glow in this relaxing generative art piece." />
+    <meta property="og:image" content="https://pirillo.com/arcade/images/fireflies.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Pirillo's Arcade" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://pirillo.com/arcade/fireflies.html" />
+    <meta name="twitter:title" content="Fireflies - An Interactive WebGL Experience" />
+    <meta name="twitter:description" content="A mesmerizing, interactive simulation of fireflies. Control their flight, color, and glow in this relaxing generative art piece." />
+    <meta name="twitter:image" content="https://pirillo.com/arcade/images/fireflies.png" />
+    <meta name="twitter:creator" content="@ChrisPirillo" />
+    <!--#endregion -->
+
+    <!--#region Performance & Resource Hints -->
+    <!-- Preconnect to critical third-party origins to speed up initial connection. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+
+    <!-- Preload the main font stylesheet. font-display: swap is crucial for preventing render-blocking text. -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;500&display=swap"></noscript>
+    
+    <!-- Preload the simplex-noise script as it's a dependency for the main animation logic. -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js" as="script">
+    <!--#endregion -->
+
+    <!--#region Analytics -->
+    <!-- Google Analytics script set to async to prevent render-blocking. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+    <!--#endregion -->
+
+    <!-- Tailwind CSS is loaded synchronously in the head as it's critical for the initial layout of the controls. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!--#region JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Fireflies",
+      "operatingSystem": "Browser",
+      "applicationCategory": "GameApplication",
+      "abstract": "An interactive, generative art experience featuring mesmerizing, simulated fireflies.",
+      "description": "Control the color, speed, brightness, and flight patterns of a swarm of digital fireflies in this relaxing WebGL visualizer.",
+      "url": "https://pirillo.com/arcade/fireflies.html",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://pirillo.com/"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0"
+      }
+    }
+    </script>
+    <!--#endregion -->
+
+    <!--#region Critical CSS -->
+    <!-- Inlined CSS is optimal for performance, eliminating a render-blocking request. No changes made to content. -->
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #02040a;
+            /* The font-family is now properly preloaded and includes Inter as a primary choice. */
+            font-family: "Inter", sans-serif;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #menu-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            padding: 10px;
+            transition:
+                background 0.3s ease,
+                transform 0.3s ease,
+                right 0.5s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        #menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        #menu-toggle.open {
+            right: 340px;
+        }
+        #menu-toggle .line {
+            width: 30px;
+            height: 3px;
+            background-color: white;
+            margin: 6px 0;
+            transition: 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        #menu-toggle.open .line1 {
+            transform: rotate(-45deg) translate(-7px, 7px);
+        }
+        #menu-toggle.open .line2 {
+            opacity: 0;
+        }
+        #menu-toggle.open .line3 {
+            transform: rotate(45deg) translate(-7px, -7px);
+        }
+        /* Using <aside> for the controls panel for better semantics. No style change needed. */
+        #controls {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 320px;
+            height: 100%;
+            background: rgba(10, 20, 40, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 40px 20px 20px 20px;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.5);
+            transition: right 0.5s cubic-bezier(0.77, 0, 0.175, 1);
+            z-index: 1000;
+            color: white;
+            overflow-y: auto;
+            font-family: "Audiowide", sans-serif;
+        }
+        #controls.open {
+            right: 0;
+        }
+        .control-group {
+            margin-bottom: 25px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .control-group label span {
+            font-family: "Inter", sans-serif;
+            font-weight: 400;
+            font-size: 0.9rem;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        .control-group input[type="range"]::-webkit-slider-runnable-track {
+            background: rgba(255, 255, 255, 0.3);
+            height: 4px;
+            border-radius: 2px;
+        }
+        .control-group input[type="range"]::-moz-range-track {
+            background: rgba(255, 255, 255, 0.3);
+            height: 4px;
+            border-radius: 2px;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            background-color: #f0f0f0;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+            transition: transform 0.2s ease;
+        }
+        .control-group input[type="range"]:active::-webkit-slider-thumb {
+            transform: scale(1.2);
+        }
+        .control-group input[type="range"]::-moz-range-thumb {
+            background-color: #f0f0f0;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        .control-group input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 40px;
+            height: 40px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        .control-group input[type="color"]::-webkit-color-swatch {
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .control-group input[type="color"]::-moz-color-swatch {
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+    </style>
+    <!--#endregion -->
+</head>
+<body>
+
+    <!-- Using <main> for the primary content area for semantic correctness. No visual impact. -->
+    <main>
+        <!-- The canvas is sized via CSS and JS, which is appropriate for this full-screen application and avoids CLS. -->
+        <canvas id="glcanvas"></canvas>
+    </main>
+    
+    <!-- This UI element controls the settings panel. -->
+    <div id="menu-toggle">
+        <div class="line line1"></div>
+        <div class="line line2"></div>
+        <div class="line line3"></div>
+    </div>
+
+    <!-- Converted to <aside> for semantic HTML, as it contains supplementary controls. -->
+    <aside id="controls">
+        <h1 class="text-4xl font-bold mb-10 text-center tracking-widest text-cyan-300">Fireflies</h1>
+
+        <div class="control-group">
+            <label for="fireflyCount">Count <span id="fireflyCountValue">100</span></label>
+            <input type="range" id="fireflyCount" min="1" max="200" value="100" step="1" />
+        </div>
+        <div class="control-group">
+            <label for="baseColor">Color</label>
+            <input type="color" id="baseColor" value="#ffff88" />
+        </div>
+        <div class="control-group">
+            <label for="speed">Speed <span id="speedValue">0.5</span></label>
+            <input type="range" id="speed" min="0" max="2.0" value="0.5" step="0.01" />
+        </div>
+        <div class="control-group">
+            <label for="agility">Agility <span id="agilityValue">0.8</span></label>
+            <input type="range" id="agility" min="0.1" max="2.0" value="0.8" step="0.05" />
+        </div>
+         <div class="control-group">
+            <label for="depth">Depth <span id="depthValue">3.0</span></label>
+            <input type="range" id="depth" min="0.5" max="10.0" value="3.0" step="0.1" />
+        </div>
+        <div class="control-group">
+            <label for="brightness">Brightness <span id="brightnessValue">1.5</span></label>
+            <input type="range" id="brightness" min="0.1" max="3.0" value="1.5" step="0.05" />
+        </div>
+        <div class="control-group">
+            <label for="exposure">Exposure <span id="exposureValue">1.5</span></label>
+            <input type="range" id="exposure" min="0.1" max="5.0" value="1.5" step="0.1" />
+        </div>
+    </aside>
+
+    <!--#region Shader Scripts -->
+    <!-- These are not executed as JS but read as text content by the main script. Their location is fine. -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision highp float;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+
+        uniform float u_fireflyCount;
+        uniform vec3 u_baseColor;
+        uniform float u_brightness;
+        uniform float u_exposure;
+
+        uniform vec4 u_fireflies[200];
+
+        void main() {
+            vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+            vec3 col = vec3(0.0);
+
+            for(int i = 0; i < 200; i++) {
+                if (float(i) >= u_fireflyCount) break;
+
+                vec4 firefly = u_fireflies[i];
+                vec2 pos2D = firefly.xy;
+                float z_pos = firefly.z;
+                float blink_offset = firefly.w;
+
+                float perspective = 1.0 + z_pos * 1.2;
+                vec2 screen_pos = pos2D / perspective;
+                float size = 0.03 / perspective;
+
+                float blink = pow(sin(u_time * 3.0 + blink_offset) * 0.5 + 0.5, 10.0);
+                blink = max(blink, 0.01);
+
+                float dist = distance(uv, screen_pos);
+                float glow = pow(size / dist, 2.0) * blink * u_brightness;
+
+                col += u_baseColor * glow;
+            }
+
+            col = 1.0 - exp(-col * u_exposure);
+            gl_FragColor = vec4(col, 1.0);
+        }
+    </script>
+    <!--#endregion -->
+
+    <!--#region Application Scripts -->
+    <!-- The simplex-noise library is deferred to load asynchronously without blocking the page render. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js" defer></script>
+
+    <!-- The main application JavaScript. -->
+    <!-- It now waits for the DOMContentLoaded event to ensure all elements and deferred scripts are ready. -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById("glcanvas");
+            const gl =
+                canvas.getContext("webgl2") || canvas.getContext("webgl");
+            
+            const fireflyData = new Float32Array(200 * 4);
+
+            if (!gl) {
+                console.error("WebGL not supported!");
+                document.body.innerHTML =
+                    "Sorry, your browser does not support WebGL, which is required for this beautiful animation.";
+            }
+
+            const vsSource =
+                document.getElementById("vertex-shader").textContent;
+            const fsSource =
+                document.getElementById("fragment-shader").textContent;
+            const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+
+            if (!shaderProgram) {
+                console.error(
+                    "Failed to initialize shader program. Halting execution.",
+                );
+            } else {
+                const programInfo = {
+                    program: shaderProgram,
+                    attribLocations: {
+                        vertexPosition: gl.getAttribLocation(
+                            shaderProgram,
+                            "a_position",
+                        ),
+                    },
+                    uniformLocations: {
+                        resolution: gl.getUniformLocation(
+                            shaderProgram,
+                            "u_resolution",
+                        ),
+                        time: gl.getUniformLocation(shaderProgram, "u_time"),
+                        fireflyCount: gl.getUniformLocation(
+                            shaderProgram,
+                            "u_fireflyCount",
+                        ),
+                        baseColor: gl.getUniformLocation(
+                            shaderProgram,
+                            "u_baseColor",
+                        ),
+                        brightness: gl.getUniformLocation(
+                            shaderProgram,
+                            "u_brightness",
+                        ),
+                        exposure: gl.getUniformLocation(
+                            shaderProgram,
+                            "u_exposure",
+                        ),
+                        fireflies: gl.getUniformLocation(
+                            shaderProgram,
+                            "u_fireflies",
+                        ),
+                    },
+                };
+
+                const positionBuffer = initBuffers(gl);
+
+                const controls = {
+                    fireflyCount: document.getElementById("fireflyCount"),
+                    baseColor: document.getElementById("baseColor"),
+                    speed: document.getElementById("speed"),
+                    agility: document.getElementById("agility"),
+                    depth: document.getElementById("depth"),
+                    brightness: document.getElementById("brightness"),
+                    exposure: document.getElementById("exposure"),
+                };
+
+                const valueDisplays = {
+                    fireflyCount: document.getElementById("fireflyCountValue"),
+                    speed: document.getElementById("speedValue"),
+                    agility: document.getElementById("agilityValue"),
+                    depth: document.getElementById("depthValue"),
+                    brightness: document.getElementById("brightnessValue"),
+                    exposure: document.getElementById("exposureValue"),
+                };
+
+                Object.keys(controls).forEach((key) => {
+                    if (controls[key]) {
+                        controls[key].addEventListener("input", (e) => {
+                            if (valueDisplays[key]) {
+                                valueDisplays[key].textContent = e.target.value;
+                            }
+                        });
+                    }
+                });
+
+                const menuToggle = document.getElementById("menu-toggle");
+                const controlsPanel = document.getElementById("controls");
+                menuToggle.addEventListener("click", () => {
+                    menuToggle.classList.toggle("open");
+                    controlsPanel.classList.toggle("open");
+                });
+
+                // --- START: JAVASCRIPT FIREFLY SIMULATION ---
+
+                const MAX_FIREFLIES = 200;
+                const fireflies = [];
+                const simplex = new SimplexNoise();
+
+                for (let i = 0; i < MAX_FIREFLIES; i++) {
+                    const initialDepth = parseFloat(controls.depth.value);
+                    fireflies.push({
+                        pos: [ (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, Math.random() * initialDepth ],
+                        vel: [ (Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.1 ],
+                        wanderAngle: Math.random() * Math.PI * 2,
+                        blinkOffset: Math.random() * 20,
+                        noiseSeed: Math.random() * 100
+                    });
+                }
+
+                let lastTime = 0;
+                function updateFireflies(time) {
+                    const deltaTime = time - lastTime;
+                    if (deltaTime < 0.001 || deltaTime > 0.1) { 
+                        lastTime = time;
+                        return;
+                    }
+                    lastTime = time;
+
+                    const speed = parseFloat(controls.speed.value);
+                    const agility = parseFloat(controls.agility.value);
+                    const depth = parseFloat(controls.depth.value);
+                    const screenRatio = canvas.width / canvas.height;
+                    const boundary = 1.3 * screenRatio;
+
+                    for (let i = 0; i < MAX_FIREFLIES; i++) {
+                        const f = fireflies[i];
+
+                        // **FIX**: New wander logic to prevent circling
+                        // Project a point in front of the firefly
+                        let wanderPoint = [
+                            f.vel[0],
+                            f.vel[1]
+                        ];
+                        // Normalize it
+                        const mag = Math.sqrt(wanderPoint[0]*wanderPoint[0] + wanderPoint[1]*wanderPoint[1]);
+                        if (mag > 0) {
+                            wanderPoint[0] /= mag;
+                            wanderPoint[1] /= mag;
+                        }
+                        // Add random displacement to that point
+                        f.wanderAngle += (simplex.noise2D(f.noiseSeed, time * 0.3) - 0.5) * agility * Math.PI * 0.5;
+                        wanderPoint[0] += Math.cos(f.wanderAngle) * 0.5;
+                        wanderPoint[1] += Math.sin(f.wanderAngle) * 0.5;
+                        
+                        let ax = wanderPoint[0];
+                        let ay = wanderPoint[1];
+                        let az = (simplex.noise2D(f.noiseSeed + 10, time * 0.3) - 0.5) * 0.5;
+
+                        // Boundary avoidance: steer away from edges
+                        const edgeStrength = 3.0;
+                        if (f.pos[0] > boundary) ax -= (f.pos[0] - boundary) * edgeStrength;
+                        if (f.pos[0] < -boundary) ax -= (f.pos[0] + boundary) * edgeStrength;
+                        if (f.pos[1] > 1.3) ay -= (f.pos[1] - 1.3) * edgeStrength;
+                        if (f.pos[1] < -1.3) ay -= (f.pos[1] + 1.3) * edgeStrength;
+                        if (f.pos[2] > depth) az -= (f.pos[2] - depth) * edgeStrength;
+                        if (f.pos[2] < 0) az -= f.pos[2] * edgeStrength;
+                        
+                        f.vel[0] += ax * agility * 0.05;
+                        f.vel[1] += ay * agility * 0.05;
+                        f.vel[2] += az * agility * 0.05;
+
+                        // Apply drag
+                        f.vel[0] *= 0.98;
+                        f.vel[1] *= 0.98;
+                        f.vel[2] *= 0.98;
+
+                        // Update position
+                        f.pos[0] += f.vel[0] * deltaTime * speed;
+                        f.pos[1] += f.vel[1] * deltaTime * speed;
+                        f.pos[2] += f.vel[2] * deltaTime * speed;
+                        
+                        // **FIX**: More aggressive recycling to keep all fireflies in view
+                        const recycleLimitX = 1.4 * screenRatio;
+                        const recycleLimitY = 1.4;
+                        if (Math.abs(f.pos[0]) > recycleLimitX || Math.abs(f.pos[1]) > recycleLimitY) {
+                            if (Math.abs(f.vel[0]) > Math.abs(f.vel[1])) {
+                                f.pos[0] = -Math.sign(f.pos[0]) * recycleLimitX;
+                                f.pos[1] = (Math.random() * 2 - 1) * recycleLimitY;
+                            } else {
+                                f.pos[1] = -Math.sign(f.pos[1]) * recycleLimitY;
+                                f.pos[0] = (Math.random() * 2 - 1) * recycleLimitX;
+                            }
+                             f.pos[2] = Math.random() * depth;
+                        }
+
+                        const dataIndex = i * 4;
+                        fireflyData[dataIndex] = f.pos[0];
+                        fireflyData[dataIndex + 1] = f.pos[1];
+                        fireflyData[dataIndex + 2] = f.pos[2];
+                        fireflyData[dataIndex + 3] = f.blinkOffset;
+                    }
+                }
+
+                // --- END: JAVASCRIPT FIREFLY SIMULATION ---
+
+                function render(time) {
+                    const timeInSeconds = time * 0.001;
+                    updateFireflies(timeInSeconds);
+                    drawScene(gl, programInfo, positionBuffer, timeInSeconds);
+                    requestAnimationFrame(render);
+                }
+                requestAnimationFrame(render);
+            }
+
+            function drawScene(gl, programInfo, buffer, time) {
+                resizeCanvasToDisplaySize(gl.canvas);
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.useProgram(programInfo.program);
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                gl.vertexAttribPointer(
+                    programInfo.attribLocations.vertexPosition,
+                    2,
+                    gl.FLOAT,
+                    false,
+                    0,
+                    0,
+                );
+                gl.enableVertexAttribArray(
+                    programInfo.attribLocations.vertexPosition,
+                );
+
+                gl.uniform2f(
+                    programInfo.uniformLocations.resolution,
+                    gl.canvas.width,
+                    gl.canvas.height,
+                );
+                gl.uniform1f(programInfo.uniformLocations.time, time);
+
+                gl.uniform1f(
+                    programInfo.uniformLocations.fireflyCount,
+                    parseFloat(document.getElementById("fireflyCount").value),
+                );
+                const color = hexToRgb(
+                    document.getElementById("baseColor").value,
+                );
+                if (color) {
+                    gl.uniform3f(
+                        programInfo.uniformLocations.baseColor,
+                        color.r,
+                        color.g,
+                        color.b,
+                    );
+                }
+                gl.uniform1f(
+                    programInfo.uniformLocations.brightness,
+                    parseFloat(document.getElementById("brightness").value),
+                );
+                gl.uniform1f(
+                    programInfo.uniformLocations.exposure,
+                    parseFloat(document.getElementById("exposure").value),
+                );
+                
+                gl.uniform4fv(programInfo.uniformLocations.fireflies, fireflyData);
+
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            }
+
+            function initShaderProgram(gl, vsSource, fsSource) {
+                const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+                const fragmentShader = loadShader(
+                    gl,
+                    gl.FRAGMENT_SHADER,
+                    fsSource,
+                );
+                if (!vertexShader || !fragmentShader) return null;
+                const shaderProgram = gl.createProgram();
+                gl.attachShader(shaderProgram, vertexShader);
+                gl.attachShader(shaderProgram, fragmentShader);
+                gl.linkProgram(shaderProgram);
+                if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                    console.error(
+                        "Unable to initialize the shader program: " +
+                            gl.getProgramInfoLog(shaderProgram),
+                    );
+                    return null;
+                }
+                return shaderProgram;
+            }
+
+            function loadShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error(
+                        "An error occurred compiling the shaders: " +
+                            gl.getShaderInfoLog(shader),
+                    );
+                    gl.deleteShader(shader);
+                    return null;
+                }
+                return shader;
+            }
+
+            function initBuffers(gl) {
+                const positionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                const positions = [-1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0];
+                gl.bufferData(
+                    gl.ARRAY_BUFFER,
+                    new Float32Array(positions),
+                    gl.STATIC_DRAW,
+                );
+                return positionBuffer;
+            }
+
+            function resizeCanvasToDisplaySize(canvas) {
+                const displayWidth = canvas.clientWidth;
+                const displayHeight = canvas.clientHeight;
+                if (
+                    canvas.width !== displayWidth ||
+                    canvas.height !== displayHeight
+                ) {
+                    canvas.width = displayWidth;
+                    canvas.height = displayHeight;
+                    return true;
+                }
+                return false;
+            }
+
+            function hexToRgb(hex) {
+                let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(
+                    hex,
+                );
+                return result
+                    ? {
+                          r: parseInt(result[1], 16) / 255.0,
+                          g: parseInt(result[2], 16) / 255.0,
+                          b: parseInt(result[3], 16) / 255.0,
+                      }
+                    : null;
+            }
+        });
+    </script>
+    <!--#endregion -->
+</body>
+</html>
